@@ -29,6 +29,13 @@ namespace PurchaseRequests.Repositories.Concrete
             return await _context._purchaseRequests.ToListAsync();
         }
 
+        public async Task<IEnumerable<PurchaseRequestDomainModel>> GetAllPendingPurchaseRequestsAsync()
+        {
+            return await _context._purchaseRequests
+                                    .Where(p => p.PurchaseRequestStatus == PurchaseRequestStatus.PENDING)
+                                    .ToListAsync();
+        }
+
         public async Task<PurchaseRequestDomainModel> GetPurchaseRequestAsync(int ID)
         {
             return await _context._purchaseRequests.FirstOrDefaultAsync(o => o.PurchaseRequestID == ID);

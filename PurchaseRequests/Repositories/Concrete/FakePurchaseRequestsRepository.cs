@@ -105,6 +105,12 @@ namespace PurchaseRequests.Repositories.Concrete
         {
             return Task.FromResult(_purchaseRequests.AsEnumerable());
         }
+        public Task<IEnumerable<PurchaseRequestDomainModel>> GetAllPendingPurchaseRequestsAsync()
+        {
+            return Task.FromResult(_purchaseRequests
+                                    .Where(p => p.PurchaseRequestStatus == PurchaseRequestStatus.PENDING)
+                                    .AsEnumerable());
+        }
 
         public Task<PurchaseRequestDomainModel> GetPurchaseRequestAsync(int ID)
         {

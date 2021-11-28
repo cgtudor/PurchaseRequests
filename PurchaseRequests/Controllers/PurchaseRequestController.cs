@@ -41,6 +41,21 @@ namespace PurchaseRequests.Controllers
         }
 
         /// <summary>
+        /// GET all pending purchase requests.
+        /// /api/purchase-requests/pending
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet]
+        [Route("pending")]
+        [Authorize]
+        public async Task<ActionResult<IEnumerable<PurchaseRequestReadDTO>>> GetAllPendingPurchaseRequests()
+        {
+            var purchaseRequestsDomainModels = await _purchaseRequestsRepository.GetAllPendingPurchaseRequestsAsync();
+
+            return Ok(_mapper.Map<IEnumerable<PurchaseRequestReadDTO>>(purchaseRequestsDomainModels));
+        }
+
+        /// <summary>
         /// GET individual purchase request.
         /// /api/purchase-requests/{id}
         /// </summary>
@@ -82,6 +97,7 @@ namespace PurchaseRequests.Controllers
         /// This function will update a purchase request with the passed in parameters.
         /// </summary>
         /// <param name="ID">The ID of the purchase request that will be updated.</param>
+        /// <param name="purchaseRequestEditPatch">The json object containing the patch details</param>
         /// <returns></returns>
         /// <response code="200">Patching of the purchase request was successful</response>
         /// <response code="401">Unauthorized access.</response>
