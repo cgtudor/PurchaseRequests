@@ -104,7 +104,19 @@ namespace PurchaseRequests
                 options.AddSecurityRequirement(securityRequirement);
             });
 
-            
+            services.AddAuthorization(o =>
+            {
+                o.AddPolicy("ReadPurchaseRequests", policy =>
+                    policy.RequireClaim("permissions", "read:purchase-requests"));
+                o.AddPolicy("ReadPurchaseRequest", policy =>
+                    policy.RequireClaim("permissions", "read:purchase-request"));
+                o.AddPolicy("CreatePurchaseRequest", policy =>
+                    policy.RequireClaim("permissions", "add:purchase-request"));
+                o.AddPolicy("UpdatePurchaseRequest", policy =>
+                    policy.RequireClaim("permissions", "edit:purchase-request"));
+                o.AddPolicy("ReadPendingPurchaseRequests", policy =>
+                    policy.RequireClaim("permissions", "read:pending-purchase-requests"));
+            });
 
             services.AddMvc(options =>
             {

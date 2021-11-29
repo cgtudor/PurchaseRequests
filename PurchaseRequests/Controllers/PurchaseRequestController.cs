@@ -32,7 +32,7 @@ namespace PurchaseRequests.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpGet]
-        [Authorize]
+        [Authorize("ReadPurchaseRequests")]
         public async Task<ActionResult<IEnumerable<PurchaseRequestReadDTO>>> GetAllPurchaseRequests()
         {
             var purchaseRequestsDomainModels = await _purchaseRequestsRepository.GetAllPurchaseRequestsAsync();
@@ -47,7 +47,7 @@ namespace PurchaseRequests.Controllers
         /// <returns></returns>
         [HttpGet]
         [Route("pending")]
-        [Authorize]
+        [Authorize("ReadPendingPurchaseRequests")]
         public async Task<ActionResult<IEnumerable<PurchaseRequestReadDTO>>> GetAllPendingPurchaseRequests()
         {
             var purchaseRequestsDomainModels = await _purchaseRequestsRepository.GetAllPendingPurchaseRequestsAsync();
@@ -62,7 +62,7 @@ namespace PurchaseRequests.Controllers
         /// <param name="ID">Represents the purchase request ID and is used to get a specific purchase request.</param>
         /// <returns></returns>
         [HttpGet("{ID}")]
-        [Authorize]
+        [Authorize("ReadPurchaseRequest")]
         [ActionName(nameof(GetPurchaseRequest))]
         public async Task<ActionResult<PurchaseRequestReadDTO>> GetPurchaseRequest(int ID)
         {
@@ -81,8 +81,8 @@ namespace PurchaseRequests.Controllers
         /// <param name="purchaseRequestCreateDTO">The properties supplied to create a purchase request from the POSTing API.</param>
         /// <returns></returns>
         [HttpPost]
-        [Authorize]
-        public async Task<ActionResult> CreateProduct([FromBody] PurchaseRequestCreateDTO purchaseRequestCreateDTO)
+        [Authorize("CreatePurchaseRequest")]
+        public async Task<ActionResult> CreatePurchaseRequest([FromBody] PurchaseRequestCreateDTO purchaseRequestCreateDTO)
         {
             var purchaseRequestModel = _mapper.Map<PurchaseRequestDomainModel>(purchaseRequestCreateDTO);
 
@@ -102,8 +102,8 @@ namespace PurchaseRequests.Controllers
         /// <response code="200">Patching of the purchase request was successful</response>
         /// <response code="401">Unauthorized access.</response>
         [HttpPatch("{ID}")]
-        [Authorize]
-        public async Task<ActionResult> UpdateOrder(int ID, JsonPatchDocument<PurchaseRequestEditDTO> purchaseRequestEditPatch)
+        [Authorize("UpdatePurchaseRequest")]
+        public async Task<ActionResult> UpdatePurchaseRequest(int ID, JsonPatchDocument<PurchaseRequestEditDTO> purchaseRequestEditPatch)
         {
             var purchaseRequestModel = await _purchaseRequestsRepository.GetPurchaseRequestAsync(ID);
             if (purchaseRequestModel == null)
