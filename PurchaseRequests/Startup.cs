@@ -47,7 +47,11 @@ namespace PurchaseRequests
             } else
             {
                 services.AddDbContext<Context.Context>(options => options.UseSqlServer
-                    (Configuration.GetConnectionString("PurchaseRequestsConnectionString")));
+                    (Configuration.GetConnectionString("PurchaseRequestsConnectionString"),
+                    sqlServerOptionsAction: sqlOptions => sqlOptions.EnableRetryOnFailure(
+                    maxRetryCount: 5,
+                    maxRetryDelay: TimeSpan.FromSeconds(2),
+                    errorNumbersToAdd: null)));
             }
 
             services.AddControllers().AddNewtonsoftJson(j =>
