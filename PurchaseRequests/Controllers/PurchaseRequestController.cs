@@ -3,8 +3,12 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
+using PurchaseRequests.AutomatedCacher.Model;
 using PurchaseRequests.DomainModels;
 using PurchaseRequests.DTOs;
+using PurchaseRequests.Enums;
 using PurchaseRequests.Repositories.Interface;
 using System;
 using System.Collections.Generic;
@@ -19,11 +23,16 @@ namespace PurchaseRequests.Controllers
     {
         private IPurchaseRequestsRepository _purchaseRequestsRepository;
         private IMapper _mapper;
+        private readonly IMemoryCache _memoryCache;
+        private readonly MemoryCacheModel _memoryCacheModel;
 
-        public PurchaseRequestController(IPurchaseRequestsRepository purchaseRequestsRepository, IMapper mapper)
+        public PurchaseRequestController(IPurchaseRequestsRepository purchaseRequestsRepository, IMapper mapper, IMemoryCache memoryCache,
+            IOptions<MemoryCacheModel> memoryCacheModel)
         {
             _purchaseRequestsRepository = purchaseRequestsRepository;
             _mapper = mapper;
+            _memoryCache = memoryCache;
+            _memoryCacheModel = memoryCacheModel.Value;
         }
 
         /// <summary>
@@ -35,8 +44,10 @@ namespace PurchaseRequests.Controllers
         [Authorize("ReadPurchaseRequests")]
         public async Task<ActionResult<IEnumerable<PurchaseRequestReadDTO>>> GetAllPurchaseRequests()
         {
-            var purchaseRequestsDomainModels = await _purchaseRequestsRepository.GetAllPurchaseRequestsAsync();
+            if (_memoryCache.TryGetValue(_memoryCacheModel.PurchaseRequests, out List<PurchaseRequestDomainModel> purchaseRequestValues))
+                return Ok(_mapper.Map<IEnumerable<PurchaseRequestReadDTO>>(purchaseRequestValues));
 
+            var purchaseRequestsDomainModels = await _purchaseRequestsRepository.GetAllPurchaseRequestsAsync();
             return Ok(_mapper.Map<IEnumerable<PurchaseRequestReadDTO>>(purchaseRequestsDomainModels));
         }
 
@@ -50,8 +61,13 @@ namespace PurchaseRequests.Controllers
         [Authorize("ReadPendingPurchaseRequests")]
         public async Task<ActionResult<IEnumerable<PurchaseRequestReadDTO>>> GetAllPendingPurchaseRequests()
         {
-            var purchaseRequestsDomainModels = await _purchaseRequestsRepository.GetAllPendingPurchaseRequestsAsync();
+            if (_memoryCache.TryGetValue(_memoryCacheModel.PurchaseRequests, out List<PurchaseRequestDomainModel> purchaseRequestValues))
+            {
+                return Ok(_mapper.Map<IEnumerable<PurchaseRequestReadDTO>>(purchaseRequestValues.Where(p => p.PurchaseRequestStatus == PurchaseRequestStatus.PENDING)
+                                                                                                .AsEnumerable()));
+            }
 
+            var purchaseRequestsDomainModels = await _purchaseRequestsRepository.GetAllPendingPurchaseRequestsAsync();
             return Ok(_mapper.Map<IEnumerable<PurchaseRequestReadDTO>>(purchaseRequestsDomainModels));
         }
 
@@ -66,7 +82,27 @@ namespace PurchaseRequests.Controllers
         [ActionName(nameof(GetPurchaseRequest))]
         public async Task<ActionResult<PurchaseRequestReadDTO>> GetPurchaseRequest(int ID)
         {
-            var purchaseRequestDomainModel = await _purchaseRequestsRepository.GetPurchaseRequestAsync(ID);
+            PurchaseRequestDomainModel purchaseRequestDomainModel;
+            //If cache exists and we find the entity.
+            if (_memoryCache.TryGetValue(_memoryCacheModel.PurchaseRequests, out List<PurchaseRequestDomainModel> purchaseRequestValues))
+            {
+                //Return the entity if we find it in the cache.
+                purchaseRequestDomainModel = purchaseRequestValues.Find(o => o.PurchaseRequestID == ID);
+                if (purchaseRequestDomainModel != null)
+                    return Ok(_mapper.Map<PurchaseRequestReadDTO>(purchaseRequestDomainModel));
+
+                //Otherwise, get the entity from the DB, add it to the cache and return it.
+                purchaseRequestDomainModel = await _purchaseRequestsRepository.GetPurchaseRequestAsync(ID);
+                if (purchaseRequestDomainModel != null)
+                {
+                    purchaseRequestValues.Add(purchaseRequestDomainModel);
+                    return Ok(_mapper.Map<PurchaseRequestReadDTO>(purchaseRequestDomainModel));
+                }
+
+                throw new ResourceNotFoundException("A resource for ID: " + ID + " does not exist.");
+            }
+
+            purchaseRequestDomainModel = await _purchaseRequestsRepository.GetPurchaseRequestAsync(ID);
 
             if (purchaseRequestDomainModel != null)
                 return Ok(_mapper.Map<PurchaseRequestReadDTO>(purchaseRequestDomainModel));
@@ -89,6 +125,9 @@ namespace PurchaseRequests.Controllers
             int newProductID = _purchaseRequestsRepository.CreatePurchaseRequest(purchaseRequestModel);
 
             await _purchaseRequestsRepository.SaveChangesAsync();
+
+            if (_memoryCache.TryGetValue(_memoryCacheModel.PurchaseRequests, out List<PurchaseRequestDomainModel> purchaseRequestValues))
+                purchaseRequestValues.Add(purchaseRequestModel);
 
             return CreatedAtAction(nameof(GetPurchaseRequest), new { ID = newProductID }, purchaseRequestModel);
         }
@@ -119,6 +158,12 @@ namespace PurchaseRequests.Controllers
 
             _purchaseRequestsRepository.UpdatePurchaseRequest(purchaseRequestModel);
             await _purchaseRequestsRepository.SaveChangesAsync();
+
+            if (_memoryCache.TryGetValue(_memoryCacheModel.PurchaseRequests, out List<PurchaseRequestDomainModel> purchaseRequestValues))
+            {
+                purchaseRequestValues.RemoveAll(o => o.PurchaseRequestID == purchaseRequestModel.PurchaseRequestID);
+                purchaseRequestValues.Add(purchaseRequestModel);
+            }
 
             return Ok();
         }

@@ -21,6 +21,10 @@ using ProductsCRUD.OpenApiSecurity;
 using Microsoft.IdentityModel.Logging;
 using PurchaseRequests.Repositories.Interface;
 using PurchaseRequests.Repositories.Concrete;
+using PurchaseRequests.AutomatedCacher.Interface;
+using ProductsCRUD.AutomatedCacher.Concrete;
+using PurchaseRequests.AutomatedCacher.Model;
+using PurchaseRequests.CustomExceptionHandler;
 
 namespace PurchaseRequests
 {
@@ -78,7 +82,7 @@ namespace PurchaseRequests
             }
             else
             {
-                services.AddSingleton<IPurchaseRequestsRepository, SqlPurchaseRequestsRepository>();
+                services.AddScoped<IPurchaseRequestsRepository, SqlPurchaseRequestsRepository>();
             }
 
             services.AddSwaggerGen(options =>
@@ -127,11 +131,12 @@ namespace PurchaseRequests
                 options.SuppressAsyncSuffixInActionNames = false;
             });
 
-            
+            services.AddSingleton<IMemoryCacheAutomater, MemoryCacheAutomater>();
+            services.Configure<MemoryCacheModel>(Configuration.GetSection("MemoryCache"));
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, Context.Context dataContext)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IMemoryCacheAutomater memoryCacheAutomater, Context.Context dataContext)
         {
             if (env.IsDevelopment())
             {
@@ -155,6 +160,7 @@ namespace PurchaseRequests
                 
             } else
             {
+                app.UseMiddleware<ExceptionMiddleware>();
                 dataContext.Database.Migrate();
             }
 
@@ -170,6 +176,8 @@ namespace PurchaseRequests
             {
                 endpoints.MapControllers();
             });
+
+            memoryCacheAutomater.AutomateCache();
         }
     }
 }
