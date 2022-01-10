@@ -44,7 +44,9 @@ namespace PurchaseRequests
         {
             IdentityModelEventSource.ShowPII = true;
 
-            if(_environment.IsDevelopment())
+            // Dependency injection for using the azure database when in staging or production.
+            // The connection string is stored in the azure web app and injected from there to the appsettings JSON.
+            if (_environment.IsDevelopment())
             {
                 services.AddDbContext<Context.Context>(options => options.UseSqlServer
                     ("local"));
@@ -58,13 +60,16 @@ namespace PurchaseRequests
                     errorNumbersToAdd: null)));
             }
 
+            // Stack used for patch requests.
             services.AddControllers().AddNewtonsoftJson(j =>
             {
                 j.SerializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
             });
 
+            // Automapper for mapping DTOs to domain models.
             services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
+            // Setting up authentication with Auth0 using configuration from the appsettings JSON.
             services.AddAuthentication(options =>
             {
                 options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -75,8 +80,8 @@ namespace PurchaseRequests
                 options.Audience = Configuration["Auth0:Audience"];
             });
 
-            //Using the fake repository while in development
-            if(_environment.IsDevelopment())
+            // Using the fake repository while in development, otherwise using the real one.
+            if (_environment.IsDevelopment())
             {
                 services.AddSingleton<IPurchaseRequestsRepository, FakePurchaseRequestsRepository>();
             }
@@ -85,6 +90,7 @@ namespace PurchaseRequests
                 services.AddScoped<IPurchaseRequestsRepository, SqlPurchaseRequestsRepository>();
             }
 
+            // Configuration of swagger for ease of development. Authentication for swagger is also configured here.
             services.AddSwaggerGen(options =>
             {
                 options.SwaggerDoc("v1", new OpenApiInfo
@@ -112,6 +118,7 @@ namespace PurchaseRequests
                 options.AddSecurityRequirement(securityRequirement);
             });
 
+            // Setting the permissions that will be used on endpoints and mapping them to an alias that we will use.
             services.AddAuthorization(o =>
             {
                 o.AddPolicy("ReadPurchaseRequests", policy =>
@@ -131,6 +138,7 @@ namespace PurchaseRequests
                 options.SuppressAsyncSuffixInActionNames = false;
             });
 
+            // Configuration of the automated cacher.
             services.AddSingleton<IMemoryCacheAutomater, MemoryCacheAutomater>();
             services.Configure<MemoryCacheModel>(Configuration.GetSection("MemoryCache"));
         }
@@ -140,9 +148,8 @@ namespace PurchaseRequests
         {
             if (env.IsDevelopment())
             {
+                // In development, we use Swagger for ease of testing.
                 app.UseDeveloperExceptionPage();
-
-                
                 app.UseSwagger();
                 app.UseSwaggerUI(c =>
                 {
@@ -157,11 +164,40 @@ namespace PurchaseRequests
                         c.OAuthUsePkce();
                     }
                 });
-                
-            } else
+            } else if (env.IsStaging())
             {
-                app.UseMiddleware<ExceptionMiddleware>();
+                // For Staging, we use the custom exception middleware, we migrate the database in case of any new migrations and we activate the automated cacher.
+                // We also use the Swagger UI for ease of access, since staging is not customer facing.
+                app.UseSwagger();
+                app.UseSwaggerUI(c =>
+                {
+                    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Glossary v1");
+
+                    if (Configuration["SwaggerUISecurityMode"]?.ToLower() == "oauth2")
+                    {
+                        c.OAuthClientId(Configuration["Auth0:ClientId"]);
+                        c.OAuthClientSecret(Configuration["Auth0:ClientSecret"]);
+                        c.OAuthAppName("GlossaryClient");
+                        c.OAuthAdditionalQueryStringParams(new Dictionary<string, string> { { "audience", Configuration["Auth0:Audience"] } });
+                        c.OAuthUsePkce();
+                    }
+                });
                 dataContext.Database.Migrate();
+                app.UseMiddleware<ExceptionMiddleware>();
+                memoryCacheAutomater.AutomateCache();
+            }
+            else if (env.IsProduction())
+            {
+                // For Production, we use the custom exception middleware, we migrate the database in case of any new migrations and we activate the automated cacher.
+                dataContext.Database.Migrate();
+                app.UseMiddleware<ExceptionMiddleware>();
+                memoryCacheAutomater.AutomateCache();
+            }
+            else
+            {
+                // For an unexpected stage, we only use the exception middleware and migrate the database.
+                dataContext.Database.Migrate();
+                app.UseMiddleware<ExceptionMiddleware>();
             }
 
             app.UseHttpsRedirection();
@@ -176,8 +212,7 @@ namespace PurchaseRequests
             {
                 endpoints.MapControllers();
             });
-
-            memoryCacheAutomater.AutomateCache();
+            
         }
     }
 }
