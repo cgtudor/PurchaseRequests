@@ -32,5 +32,13 @@ steps:
   inputs:
     platform: '$(buildPlatform)'
     configuration: '$(buildConfiguration)'
+
+- task: DotNetCoreCLI@2
+  displayName: 'Run unit tests - $(buildConfiguration)'
+  inputs:
+    command: 'test'
+    arguments: '--no-build --configuration $(buildConfiguration)'
+    publishTestResults: true
+    projects: '*/PurchaseRequestsTests/.csproj'    
     
 - task: PublishBuildArtifacts@1
