@@ -4,7 +4,7 @@ using System.Runtime.Serialization;
 namespace PurchaseRequests.Controllers
 {
     [Serializable]
-    internal class ResourceNotFoundException : Exception
+    public class ResourceNotFoundException : Exception
     {
         private object p;
 

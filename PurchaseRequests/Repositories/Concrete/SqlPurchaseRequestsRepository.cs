@@ -48,7 +48,9 @@ namespace PurchaseRequests.Repositories.Concrete
 
         public void UpdatePurchaseRequest(PurchaseRequestDomainModel purchaseRequestDomainModel)
         {
-            
+            if (purchaseRequestDomainModel == null)
+                throw new ArgumentNullException(nameof(purchaseRequestDomainModel), "The product model to be updated cannot be null");
+            _context._purchaseRequests.Update(purchaseRequestDomainModel);
         }
     }
 }

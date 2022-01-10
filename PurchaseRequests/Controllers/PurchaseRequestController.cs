@@ -107,7 +107,7 @@ namespace PurchaseRequests.Controllers
             if (purchaseRequestDomainModel != null)
                 return Ok(_mapper.Map<PurchaseRequestReadDTO>(purchaseRequestDomainModel));
 
-            return NotFound();
+            throw new ResourceNotFoundException();
         }
 
         /// <summary>
@@ -146,13 +146,13 @@ namespace PurchaseRequests.Controllers
         {
             var purchaseRequestModel = await _purchaseRequestsRepository.GetPurchaseRequestAsync(ID);
             if (purchaseRequestModel == null)
-                return NotFound();
+                throw new ResourceNotFoundException();
 
             var newProduct = _mapper.Map<PurchaseRequestEditDTO>(purchaseRequestModel);
             purchaseRequestEditPatch.ApplyTo(newProduct, ModelState);
 
             if (!TryValidateModel(newProduct))
-                return ValidationProblem(ModelState);
+                throw new ArgumentException();
 
             _mapper.Map(newProduct, purchaseRequestModel);
 

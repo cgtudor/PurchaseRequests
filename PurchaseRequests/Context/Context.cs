@@ -10,12 +10,14 @@ namespace PurchaseRequests.Context
 {
     public class Context : DbContext
     {
-        public DbSet<PurchaseRequestDomainModel> _purchaseRequests { get; set; }
+        virtual public DbSet<PurchaseRequestDomainModel> _purchaseRequests { get; set; }
 
         public Context(DbContextOptions<Context> options) : base(options)
         {
 
         }
+
+        public Context() { }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
