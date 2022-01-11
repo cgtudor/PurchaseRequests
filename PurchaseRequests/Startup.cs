@@ -188,7 +188,7 @@ namespace PurchaseRequests
             }
             else if (env.IsProduction())
             {
-                // For Production, we use the custom exception middleware, we migrate the database in case of any new migrations and we activate the automated cacher.
+                // For Production, we use the custom exception middleware, we migrate the database in case of any new migrations and we activate the automated cacher
                 dataContext.Database.Migrate();
                 app.UseMiddleware<ExceptionMiddleware>();
                 memoryCacheAutomater.AutomateCache();
